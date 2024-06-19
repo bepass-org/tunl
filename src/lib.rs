@@ -1,13 +1,12 @@
 mod common;
 mod config;
+mod link;
 mod proxy;
 
-use crate::config::Config;
+use crate::config::{Config, Outbound};
+use crate::link::generate_link;
 use crate::proxy::*;
 
-use base64::{engine::general_purpose::URL_SAFE, Engine as _};
-use serde::Serialize;
-use serde_json::json;
 use uuid::Uuid;
 use worker::*;
 
@@ -18,7 +17,7 @@ async fn main(req: Request, env: Env, _: Context) -> Result<Response> {
         .map(|x| Uuid::parse_str(&x.to_string()).unwrap_or_default())?;
     let outbound = env
         .var("OUTBOUND")
-        .map(|x| x.to_string())
+        .map(|x| Outbound::from(x.to_string()))
         .unwrap_or_default();
     let host = req.url()?.host().map(|x| x.to_string()).unwrap_or_default();
     let config = Config {
@@ -42,10 +41,9 @@ async fn tunnel(_: Request, cx: RouteContext<Config>) -> Result<Response> {
         let config = cx.data;
         let events = server.events().unwrap();
 
-        if let Err(e) = match config.outbound.as_str() {
-            "VLESS" => VlessStream::new(config, &server, events).process().await,
-            "VMESS" => VmessStream::new(config, &server, events).process().await,
-            _ => Err(Error::RustError("invalid outbound".to_string())),
+        if let Err(e) = match config.outbound {
+            Outbound::Vless => VlessStream::new(config, &server, events).process().await,
+            Outbound::Vmess => VmessStream::new(config, &server, events).process().await,
         } {
             console_log!("[tunnel]: {}", e);
         }
@@ -55,37 +53,5 @@ async fn tunnel(_: Request, cx: RouteContext<Config>) -> Result<Response> {
 }
 
 fn link(_: Request, cx: RouteContext<Config>) -> Result<Response> {
-    #[derive(Serialize)]
-    struct Link {
-        description: String,
-        link: String,
-    }
-
-    let link = {
-        let host = cx.data.host.to_string();
-        let uuid = cx.data.uuid.to_string();
-        let config = json!({
-            "ps": "tunl",
-            "v": "2",
-            "add": "162.159.16.149",
-            "port": "80",
-            "id": uuid,
-            "aid": "0",
-            "scy": "zero",
-            "net": "ws",
-            "type": "none",
-            "host": host,
-            "path": "",
-            "tls": "",
-            "sni": "",
-            "alpn": ""}
-        );
-        format!("vmess://{}", URL_SAFE.encode(config.to_string()))
-    };
-
-    Response::from_json(&Link {
-        link,
-        description:
-            "visit https://scanner.github1.cloud/ and replace the IP address in the configuration with a clean one".to_string()
-    })
+    Response::from_json(&generate_link(&cx.data))
 }
