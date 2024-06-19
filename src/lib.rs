@@ -16,8 +16,16 @@ async fn main(req: Request, env: Env, _: Context) -> Result<Response> {
     let uuid = env
         .var("UUID")
         .map(|x| Uuid::parse_str(&x.to_string()).unwrap_or_default())?;
+    let outbound = env
+        .var("OUTBOUND")
+        .map(|x| x.to_string())
+        .unwrap_or_default();
     let host = req.url()?.host().map(|x| x.to_string()).unwrap_or_default();
-    let config = Config { uuid, host };
+    let config = Config {
+        uuid,
+        host,
+        outbound,
+    };
 
     Router::with_data(config)
         .on_async("/", tunnel)
@@ -31,8 +39,14 @@ async fn tunnel(_: Request, cx: RouteContext<Config>) -> Result<Response> {
 
     server.accept()?;
     wasm_bindgen_futures::spawn_local(async move {
+        let config = cx.data;
         let events = server.events().unwrap();
-        if let Err(e) = VmessStream::new(cx.data, &server, events).process().await {
+
+        if let Err(e) = match config.outbound.as_str() {
+            "VLESS" => VlessStream::new(config, &server, events).process().await,
+            "VMESS" => VmessStream::new(config, &server, events).process().await,
+            _ => Err(Error::RustError("invalid outbound".to_string())),
+        } {
             console_log!("[tunnel]: {}", e);
         }
     });
