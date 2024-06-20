@@ -9,24 +9,23 @@ pub struct Link {
     link: String,
 }
 
-pub fn generate_link(config: &Config) -> Link {
+pub fn generate_link(config: &Config, host: &str) -> Link {
     let link = match config.outbound {
-        Outbound::Vless => generate_vless_link(config),
-        Outbound::Vmess => generate_vmess_link(config),
+        Outbound::Vless => generate_vless_link(config, host),
+        Outbound::Vmess => generate_vmess_link(config, host),
     };
 
     Link { link }
 }
 
-fn generate_vless_link(config: &Config) -> String {
+fn generate_vless_link(config: &Config, host: &str) -> String {
     format!(
         "vless://{}@{}:443?type=ws&security=tls#tunl",
-        config.uuid, config.host,
+        config.uuid, host,
     )
 }
 
-fn generate_vmess_link(config: &Config) -> String {
-    let host = config.host.to_string();
+fn generate_vmess_link(config: &Config, host: &str) -> String {
     let uuid = config.uuid.to_string();
     let config = json!({
         "ps": "tunl",

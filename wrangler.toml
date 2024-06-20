@@ -9,6 +9,11 @@ command = "cargo install -q worker-build && worker-build --release"
 [env.dev]
 build = { command = "cargo install -q worker-build && worker-build --dev" }
 
-[vars]
-UUID = "0fbf4f81-2598-4b6a-a623-0ead4cb9efa8"
-OUTBOUND = "VMESS"
+[durable_objects]
+bindings = [
+  { name = "TUNL", class_name = "Tunl" }
+]
+
+[[migrations]]
+tag = "v1"
+new_classes = ["Tunl"]

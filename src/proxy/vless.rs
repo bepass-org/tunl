@@ -58,15 +58,25 @@ impl<'a> VlessStream<'a> {
         // instruction
         self.read_u8().await?;
 
-        // port
+        // addr:port
         let mut port = [0u8; 2];
         self.read_exact(&mut port).await?;
-        let port = u16::from_be_bytes(port);
+        let mut port = u16::from_be_bytes(port);
+        let mut addr = crate::common::parse_addr(self).await?;
 
-        let addr = crate::common::parse_addr(self).await?;
+        let use_relay = self.config.is_relay_request(addr.clone(), port);
+        let mut relay_header = vec![];
+        if use_relay {
+            relay_header = format!("tcp@{addr}${port}\r\n").as_bytes().to_vec();
+            (addr, port) = self.config.random_relay();
+        }
 
         console_log!("connecting to upstream {}:{}", addr, port);
-        let mut upstream = Socket::builder().connect(addr, port)?;
+        let mut upstream = Socket::builder().connect(addr.clone(), port)?;
+
+        if use_relay {
+            upstream.write(&relay_header).await?;
+        }
 
         // +-----------------------------------------------+------------------------------------+------------------------------------+---------------+
         // |                    1 Byte                     |               1 Byte               |              N Bytes               |    Y Bytes    |
@@ -74,6 +84,7 @@ impl<'a> VlessStream<'a> {
         // | Protocol Version, consistent with the request | Length of additional information N | Additional information in ProtoBuf | Response data |
         // +-----------------------------------------------+------------------------------------+------------------------------------+---------------+
         self.write(&[0u8; 2]).await?; // no additional information
+
         tokio::io::copy_bidirectional(self, &mut upstream).await?;
 
         Ok(())

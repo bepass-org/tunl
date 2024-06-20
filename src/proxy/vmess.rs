@@ -152,15 +152,26 @@ impl<'a> VmessStream<'a> {
         let mut options = [0u8; 5];
         buf.read_exact(&mut options).await?;
 
-        let port = {
+        let mut port = {
             let mut port = [0u8; 2];
             buf.read_exact(&mut port).await?;
             ((port[0] as u16) << 8) | (port[1] as u16)
         };
-        let addr = crate::common::parse_addr(&mut buf).await?;
+        let mut addr = crate::common::parse_addr(&mut buf).await?;
+
+        let use_relay = self.config.is_relay_request(addr.clone(), port);
+        let mut relay_header = vec![];
+        if use_relay {
+            relay_header = format!("tcp@{addr}${port}\r\n").as_bytes().to_vec();
+            (addr, port) = self.config.random_relay();
+        }
 
         console_log!("connecting to upstream {}:{}", addr, port);
-        let mut upstream = Socket::builder().connect(addr, port)?;
+        let mut upstream = Socket::builder().connect(addr.clone(), port)?;
+
+        if use_relay {
+            upstream.write(&relay_header).await?;
+        }
 
         // encrypt payload
         let key = &crate::sha256!(&key)[..16];
