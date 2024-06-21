@@ -1,8 +1,18 @@
+[inbounds]
 uuid = "0fbf4f81-2598-4b6a-a623-0ead4cb9efa8"
-outbound = "vless"
+protocol = "vless"
 
-# forward matched connections to a bepass-relay server
-[relay]
+[[outbounds]]
+tag = "direct"
+protocol = "freedom"
+
+[[outbounds]]
+tag = "relay"
+protocol = "relay"
+addresses = ["127.0.0.1"]
+port = 6666
+
+[routing]
 match = """
 ip in {103.21.244.0/22
        103.22.200.0/22
@@ -20,5 +30,4 @@ ip in {103.21.244.0/22
        197.234.240.0/22
        198.41.128.0/17}
 """
-addresses = ["127.0.0.1"]
-port = 6666
+outbound = "relay"
