@@ -1,5 +1,12 @@
+[[inbound]]
+protocol = "vless"
 uuid = "0fbf4f81-2598-4b6a-a623-0ead4cb9efa8"
-outbound = "vless"
+path = "/vless"
+
+[[inbound]]
+protocol = "vmess"
+uuid = "0fbf4f81-2598-4b6a-a623-0ead4cb9efa8"
+path = "/vmess"
 
 # forward matched connections to a bepass-relay server
 [relay]
