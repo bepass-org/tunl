@@ -1,4 +1,6 @@
 # tunl
+**NOTE: this version only works on cf workers pricing plans. with the help of durable objects it can perform much faster.**
+
 a serverless v2ray tunnel
 
 ## Deploy
