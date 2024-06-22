@@ -64,7 +64,7 @@ impl<'a> VlessStream<'a> {
         let mut port = u16::from_be_bytes(port);
         let mut addr = crate::common::parse_addr(self).await?;
 
-        let use_relay = self.config.is_relay_request(addr.clone(), port);
+        let use_relay = self.config.is_relay_request(addr.clone());
         let mut relay_header = vec![];
         if use_relay {
             relay_header = format!("tcp@{addr}${port}\r\n").as_bytes().to_vec();

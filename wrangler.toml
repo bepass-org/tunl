@@ -8,12 +8,3 @@ command = "cargo install -q worker-build && worker-build --release"
 
 [env.dev]
 build = { command = "cargo install -q worker-build && worker-build --dev" }
-
-[durable_objects]
-bindings = [
-  { name = "TUNL", class_name = "Tunl" }
-]
-
-[[migrations]]
-tag = "v1"
-new_classes = ["Tunl"]
