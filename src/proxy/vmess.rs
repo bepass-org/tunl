@@ -5,7 +5,7 @@ use crate::common::{
     KDFSALT_CONST_VMESS_HEADER_PAYLOAD_LENGTH_AEAD_IV,
     KDFSALT_CONST_VMESS_HEADER_PAYLOAD_LENGTH_AEAD_KEY,
 };
-use crate::config::Config;
+use crate::config::{Config, Inbound};
 
 use std::io::Cursor;
 use std::pin::Pin;
@@ -28,6 +28,7 @@ use worker::*;
 pin_project! {
     pub struct VmessStream<'a> {
         pub config: Config,
+        pub inbound: Inbound,
         pub ws: &'a WebSocket,
         pub buffer: BytesMut,
         #[pin]
@@ -36,11 +37,17 @@ pin_project! {
 }
 
 impl<'a> VmessStream<'a> {
-    pub fn new(config: Config, ws: &'a WebSocket, events: EventStream<'a>) -> Self {
+    pub fn new(
+        config: Config,
+        inbound: Inbound,
+        ws: &'a WebSocket,
+        events: EventStream<'a>,
+    ) -> Self {
         let buffer = BytesMut::new();
 
         Self {
             config,
+            inbound,
             ws,
             buffer,
             events,
@@ -49,7 +56,7 @@ impl<'a> VmessStream<'a> {
 
     async fn aead_decrypt(&mut self) -> Result<Vec<u8>> {
         let key = crate::md5!(
-            &self.config.uuid.as_bytes(),
+            &self.inbound.uuid.as_bytes(),
             b"c48619fe-8f02-49e0-b9e9-edf763e17e21"
         );
 

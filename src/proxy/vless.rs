@@ -1,4 +1,4 @@
-use crate::config::Config;
+use crate::config::{Config, Inbound};
 
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -12,6 +12,7 @@ use worker::*;
 pin_project! {
     pub struct VlessStream<'a> {
         pub config: Config,
+        pub inbound: Inbound,
         pub ws: &'a WebSocket,
         pub buffer: BytesMut,
         #[pin]
@@ -20,11 +21,17 @@ pin_project! {
 }
 
 impl<'a> VlessStream<'a> {
-    pub fn new(config: Config, ws: &'a WebSocket, events: EventStream<'a>) -> Self {
+    pub fn new(
+        config: Config,
+        inbound: Inbound,
+        ws: &'a WebSocket,
+        events: EventStream<'a>,
+    ) -> Self {
         let buffer = BytesMut::new();
 
         Self {
             config,
+            inbound,
             ws,
             buffer,
             events,
@@ -46,7 +53,7 @@ impl<'a> VlessStream<'a> {
         let mut uuid = [0u8; 16];
         self.read_exact(&mut uuid).await?;
         let uuid = uuid::Uuid::from_bytes(uuid);
-        if self.config.uuid != uuid {
+        if self.inbound.uuid != uuid {
             return Err(Error::RustError("incorrect uuid".to_string()));
         }
 

@@ -6,15 +6,22 @@ use uuid::{self, Uuid};
 
 #[derive(Debug, PartialEq, Clone, Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub enum Outbound {
+pub enum Protocol {
     Vless,
     Vmess,
 }
 
-impl Default for Outbound {
+impl Default for Protocol {
     fn default() -> Self {
         Self::Vmess
     }
+}
+
+#[derive(Default, Clone, Deserialize)]
+pub struct Inbound {
+    pub protocol: Protocol,
+    pub uuid: Uuid,
+    pub path: String,
 }
 
 #[derive(Default, Clone, Deserialize)]
@@ -26,8 +33,7 @@ pub struct RelayConfig {
 
 #[derive(Default, Clone, Deserialize)]
 pub struct Config {
-    pub uuid: Uuid,
-    pub outbound: Outbound,
+    pub inbound: Vec<Inbound>,
     pub relay: RelayConfig,
 }
 
@@ -57,9 +63,17 @@ mod tests {
     #[test]
     fn test_config() {
         let buf = r#"
+            [[inbound]]
+            protocol = "vless"
             uuid = "0fbf4f81-2598-4b6a-a623-0ead4cb9efa8"
-            outbound = "vless"
+            path = "/vless"
 
+            [[inbound]]
+            protocol = "vmess"
+            uuid = "0fbf4f81-2598-4b6a-a623-0ead4cb9efa8"
+            path = "/vmess"
+
+            # forward matched connections to a bepass-relay server
             [relay]
             match = ["173.245.48.0/20",
                      "103.21.244.0/22",
@@ -81,9 +95,9 @@ mod tests {
         "#;
         let config = Config::new(buf);
 
-        assert_eq!(config.outbound, Outbound::Vless);
+        assert_eq!(config.inbound[0].protocol, Protocol::Vless);
         assert_eq!(
-            config.uuid,
+            config.inbound[1].uuid,
             uuid::uuid!("0fbf4f81-2598-4b6a-a623-0ead4cb9efa8")
         );
         assert_eq!(config.relay.addresses, vec!["1.1.1.1"]);

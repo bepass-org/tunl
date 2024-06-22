@@ -1,4 +1,4 @@
-use crate::config::{Config, Outbound};
+use crate::config::{Config, Inbound, Protocol};
 
 use base64::{engine::general_purpose::URL_SAFE, Engine as _};
 use serde::Serialize;
@@ -6,26 +6,31 @@ use serde_json::json;
 
 #[derive(Serialize)]
 pub struct Link {
-    link: String,
+    links: Vec<String>,
 }
 
 pub fn generate_link(config: &Config, host: &str) -> Link {
-    let link = match config.outbound {
-        Outbound::Vless => generate_vless_link(config, host),
-        Outbound::Vmess => generate_vmess_link(config, host),
-    };
+    let links = config
+        .inbound
+        .clone()
+        .into_iter()
+        .map(|inbound| match inbound.protocol {
+            Protocol::Vless => generate_vless_link(&inbound, host),
+            Protocol::Vmess => generate_vmess_link(&inbound, host),
+        })
+        .collect();
 
-    Link { link }
+    Link { links }
 }
 
-fn generate_vless_link(config: &Config, host: &str) -> String {
+fn generate_vless_link(config: &Inbound, host: &str) -> String {
     format!(
         "vless://{}@{}:443?type=ws&security=tls#tunl",
         config.uuid, host,
     )
 }
 
-fn generate_vmess_link(config: &Config, host: &str) -> String {
+fn generate_vmess_link(config: &Inbound, host: &str) -> String {
     let uuid = config.uuid.to_string();
     let config = json!({
         "ps": "tunl",

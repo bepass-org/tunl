@@ -3,7 +3,7 @@ mod config;
 mod link;
 mod proxy;
 
-use crate::config::{Config, Outbound};
+use crate::config::{Config, Inbound, Protocol};
 use crate::link::generate_link;
 use crate::proxy::*;
 
@@ -16,27 +16,42 @@ lazy_static::lazy_static! {
 }
 
 #[event(fetch)]
-async fn main(req: Request, env: Env, _: Context) -> Result<Response> {
+async fn main(req: Request, _: Env, _: Context) -> Result<Response> {
     let config = Config::new(&CONFIG);
 
-    Router::with_data(config)
-        .on_async("/", tunnel)
-        .on("/link", link)
-        .run(req, env)
-        .await
+    console_log!("config {:?}", config.inbound.len());
+
+    match req.path().as_str() {
+        "/link" => link(req, config),
+        path => {
+            for inbound in config.inbound.clone() {
+                if inbound.path == path {
+                    return tunnel(config, inbound).await;
+                }
+            }
+            return Response::error("not found", 404);
+        }
+    }
 }
 
-async fn tunnel(_: Request, cx: RouteContext<Config>) -> Result<Response> {
+async fn tunnel(config: Config, inbound: Inbound) -> Result<Response> {
     let WebSocketPair { server, client } = WebSocketPair::new()?;
 
     server.accept()?;
     wasm_bindgen_futures::spawn_local(async move {
-        let config = cx.data;
         let events = server.events().unwrap();
 
-        if let Err(e) = match config.outbound {
-            Outbound::Vless => VlessStream::new(config, &server, events).process().await,
-            Outbound::Vmess => VmessStream::new(config, &server, events).process().await,
+        if let Err(e) = match inbound.protocol {
+            Protocol::Vless => {
+                VlessStream::new(config, inbound, &server, events)
+                    .process()
+                    .await
+            }
+            Protocol::Vmess => {
+                VmessStream::new(config, inbound, &server, events)
+                    .process()
+                    .await
+            }
         } {
             console_log!("[tunnel]: {}", e);
         }
@@ -45,8 +60,7 @@ async fn tunnel(_: Request, cx: RouteContext<Config>) -> Result<Response> {
     Response::from_websocket(client)
 }
 
-fn link(req: Request, cx: RouteContext<Config>) -> Result<Response> {
-    let config = cx.data;
+fn link(req: Request, config: Config) -> Result<Response> {
     let host = req.url()?.host().map(|x| x.to_string()).unwrap_or_default();
     Response::from_json(&generate_link(&config, &host))
 }
