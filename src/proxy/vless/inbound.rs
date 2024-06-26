@@ -1,4 +1,5 @@
 use crate::config::{Config, Inbound};
+use crate::proxy::RequestContext;
 
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -24,8 +25,8 @@ impl<'a> VlessStream<'a> {
     pub fn new(
         config: Config,
         inbound: Inbound,
-        ws: &'a WebSocket,
         events: EventStream<'a>,
+        ws: &'a WebSocket,
     ) -> Self {
         let buffer = BytesMut::new();
 
@@ -68,22 +69,17 @@ impl<'a> VlessStream<'a> {
         // addr:port
         let mut port = [0u8; 2];
         self.read_exact(&mut port).await?;
-        let mut port = u16::from_be_bytes(port);
-        let mut addr = crate::common::parse_addr(self).await?;
+        let remote_port = u16::from_be_bytes(port);
+        let remote_addr = crate::common::parse_addr(self).await?;
 
-        let use_relay = self.config.is_relay_request(addr.clone());
-        let mut relay_header = vec![];
-        if use_relay {
-            relay_header = format!("tcp@{addr}${port}\r\n").as_bytes().to_vec();
-            (addr, port) = self.config.random_relay();
-        }
-
-        console_log!("connecting to upstream {}:{}", addr, port);
-        let mut upstream = Socket::builder().connect(addr.clone(), port)?;
-
-        if use_relay {
-            upstream.write(&relay_header).await?;
-        }
+        let outbound = self
+            .config
+            .dispatch_outbound(remote_addr.clone(), remote_port);
+        let ctx = RequestContext {
+            remote_addr,
+            remote_port,
+        };
+        let mut upstream = crate::proxy::connect_outbound(ctx, outbound).await?;
 
         // +-----------------------------------------------+------------------------------------+------------------------------------+---------------+
         // |                    1 Byte                     |               1 Byte               |              N Bytes               |    Y Bytes    |

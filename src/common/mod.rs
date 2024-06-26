@@ -1,6 +1,6 @@
 pub mod hash;
 
-use std::net::{Ipv4Addr, Ipv6Addr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use tokio::io::{AsyncRead, AsyncReadExt};
 use worker::*;
 
@@ -39,6 +39,16 @@ macro_rules! sha256 {
             hash.finalize()
         }
     }
+}
+
+pub fn encode_addr(addr: &str) -> Result<Vec<u8>> {
+    let ip = addr
+        .parse::<IpAddr>()
+        .map_err(|_| Error::RustError("couldn't encode ip address".to_string()))?;
+    Ok(match ip {
+        IpAddr::V4(ip) => ip.octets().to_vec(),
+        IpAddr::V6(ip) => ip.octets().to_vec(),
+    })
 }
 
 pub async fn parse_addr<R: AsyncRead + std::marker::Unpin>(buf: &mut R) -> Result<String> {

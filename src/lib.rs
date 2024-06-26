@@ -3,9 +3,8 @@ mod config;
 mod link;
 mod proxy;
 
-use crate::config::{Config, Inbound, Protocol};
+use crate::config::{Config, Inbound};
 use crate::link::generate_link;
-use crate::proxy::*;
 
 use worker::*;
 
@@ -21,14 +20,10 @@ async fn main(req: Request, _: Env, _: Context) -> Result<Response> {
 
     match req.path().as_str() {
         "/link" => link(req, config),
-        path => {
-            for inbound in config.inbound.clone() {
-                if inbound.path == path {
-                    return tunnel(config, inbound).await;
-                }
-            }
-            return Response::empty();
-        }
+        path => match config.dispatch_inbound(path) {
+            Some(inbound) => tunnel(config, inbound).await,
+            None => Response::empty(),
+        },
     }
 }
 
@@ -39,18 +34,7 @@ async fn tunnel(config: Config, inbound: Inbound) -> Result<Response> {
     wasm_bindgen_futures::spawn_local(async move {
         let events = server.events().unwrap();
 
-        if let Err(e) = match inbound.protocol {
-            Protocol::Vless => {
-                VlessStream::new(config, inbound, &server, events)
-                    .process()
-                    .await
-            }
-            Protocol::Vmess => {
-                VmessStream::new(config, inbound, &server, events)
-                    .process()
-                    .await
-            }
-        } {
+        if let Err(e) = proxy::process(config, inbound, &server, events).await {
             console_log!("[tunnel]: {}", e);
         }
     });
