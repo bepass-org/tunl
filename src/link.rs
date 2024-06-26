@@ -14,9 +14,10 @@ pub fn generate_link(config: &Config, host: &str) -> Link {
         .inbound
         .clone()
         .into_iter()
-        .map(|inbound| match inbound.protocol {
-            Protocol::Vless => generate_vless_link(&inbound, host),
-            Protocol::Vmess => generate_vmess_link(&inbound, host),
+        .filter_map(|inbound| match inbound.protocol {
+            Protocol::Vless => Some(generate_vless_link(&inbound, host)),
+            Protocol::Vmess => Some(generate_vmess_link(&inbound, host)),
+            _ => None,
         })
         .collect();
 

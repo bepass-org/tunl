@@ -6,6 +6,7 @@ use crate::common::{
     KDFSALT_CONST_VMESS_HEADER_PAYLOAD_LENGTH_AEAD_KEY,
 };
 use crate::config::{Config, Inbound};
+use crate::proxy::RequestContext;
 
 use std::io::Cursor;
 use std::pin::Pin;
@@ -40,8 +41,8 @@ impl<'a> VmessStream<'a> {
     pub fn new(
         config: Config,
         inbound: Inbound,
-        ws: &'a WebSocket,
         events: EventStream<'a>,
+        ws: &'a WebSocket,
     ) -> Self {
         let buffer = BytesMut::new();
 
@@ -159,26 +160,21 @@ impl<'a> VmessStream<'a> {
         let mut options = [0u8; 5];
         buf.read_exact(&mut options).await?;
 
-        let mut port = {
+        let remote_port = {
             let mut port = [0u8; 2];
             buf.read_exact(&mut port).await?;
             ((port[0] as u16) << 8) | (port[1] as u16)
         };
-        let mut addr = crate::common::parse_addr(&mut buf).await?;
+        let remote_addr = crate::common::parse_addr(&mut buf).await?;
 
-        let use_relay = self.config.is_relay_request(addr.clone());
-        let mut relay_header = vec![];
-        if use_relay {
-            relay_header = format!("tcp@{addr}${port}\r\n").as_bytes().to_vec();
-            (addr, port) = self.config.random_relay();
-        }
-
-        console_log!("connecting to upstream {}:{}", addr, port);
-        let mut upstream = Socket::builder().connect(addr.clone(), port)?;
-
-        if use_relay {
-            upstream.write(&relay_header).await?;
-        }
+        let outbound = self
+            .config
+            .dispatch_outbound(remote_addr.clone(), remote_port);
+        let ctx = RequestContext {
+            remote_addr,
+            remote_port,
+        };
+        let mut upstream = crate::proxy::connect_outbound(ctx, outbound).await?;
 
         // encrypt payload
         let key = &crate::sha256!(&key)[..16];
