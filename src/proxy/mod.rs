@@ -1,47 +1,80 @@
+pub mod relay;
 pub mod vless;
 pub mod vmess;
 
 use crate::config::*;
 
+use async_trait::async_trait;
 use tokio::io::{AsyncRead, AsyncWrite};
 use worker::*;
+
+#[async_trait]
+pub trait Proxy: AsyncRead + AsyncWrite + Unpin + Send {
+    async fn process(&mut self) -> Result<()>;
+}
+
+#[async_trait]
+impl Proxy for Socket {
+    async fn process(&mut self) -> Result<()> {
+        Ok(())
+    }
+}
+
+#[derive(Default, Debug)]
+pub enum Network {
+    #[default]
+    Tcp,
+    Udp,
+}
+
+impl Network {
+    fn from_byte(b: u8) -> Result<Self> {
+        match b {
+            0x01 => Ok(Self::Tcp),
+            0x02 => Ok(Self::Udp),
+            _ => Err(Error::RustError("invalid network type".to_string())),
+        }
+    }
+
+    fn to_byte(&self) -> u8 {
+        match self {
+            Self::Tcp => 0x01,
+            Self::Udp => 0x02,
+        }
+    }
+}
 
 #[derive(Default)]
 pub struct RequestContext {
     remote_addr: String,
     remote_port: u16,
+    network: Network,
 }
 
-pub trait AsyncRW: AsyncRead + AsyncWrite + Unpin {}
-impl<S: AsyncRead + AsyncWrite + Unpin> AsyncRW for S {}
+async fn connect_outbound(ctx: RequestContext, outbound: Outbound) -> Result<Box<dyn Proxy>> {
+    let (addr, port) = match outbound.protocol {
+        Protocol::Freedom => (&ctx.remote_addr, ctx.remote_port),
+        _ => (
+            &outbound.addresses[fastrand::usize(..outbound.addresses.len())],
+            outbound.port,
+        ),
+    };
 
-async fn connect_outbound(ctx: RequestContext, outbound: Outbound) -> Result<Box<dyn AsyncRW>> {
     console_log!(
-        "connecting to upstream {}:{}",
-        ctx.remote_addr,
-        ctx.remote_port
+        "[{:?}] connecting to upstream {addr}:{port}",
+        outbound.protocol
     );
 
-    match outbound.protocol {
-        Protocol::Vless => {
-            let addr = &outbound.addresses[fastrand::usize(..outbound.addresses.len())];
-            let socket = Socket::builder().connect(addr, outbound.port)?;
-            let mut stream = vless::outbound::VlessStream::new(ctx, outbound, socket);
-            stream.process().await?;
+    let socket = Socket::builder().connect(addr, port)?;
 
-            Ok(Box::new(stream))
-        }
-        _ => {
-            // FIXME
-            let addr = if ctx.remote_addr.contains(':') {
-                format!("[{}]", ctx.remote_addr)
-            } else {
-                ctx.remote_addr
-            };
-            let socket = Socket::builder().connect(addr, ctx.remote_port)?;
-            Ok(Box::new(socket))
-        }
-    }
+    let mut stream: Box<dyn Proxy> = match outbound.protocol {
+        Protocol::Vless => Box::new(vless::outbound::VlessStream::new(ctx, outbound, socket)),
+        Protocol::Relay => Box::new(relay::outbound::RelayStream::new(ctx, socket)),
+        _ => Box::new(socket),
+    };
+
+    stream.process().await?;
+    Ok(stream)
 }
 
 pub async fn process(

@@ -1,11 +1,12 @@
 use crate::common::encode_addr;
-use crate::proxy::RequestContext;
+use crate::proxy::{Proxy, RequestContext};
 
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use crate::config::Outbound;
 
+use async_trait::async_trait;
 use bytes::{BufMut, BytesMut};
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, ReadBuf};
 use worker::*;
@@ -30,12 +31,15 @@ impl VlessStream {
             handshaked: false,
         }
     }
+}
 
-    pub async fn process(&mut self) -> Result<()> {
+#[async_trait]
+impl Proxy for VlessStream {
+    async fn process(&mut self) -> Result<()> {
         let mut cmd = vec![0x00u8];
         cmd.extend_from_slice(self.outbound.uuid.clone().as_bytes());
         cmd.extend_from_slice(&[0x00]);
-        cmd.extend_from_slice(&[0x01]); // TODO: other networks?
+        cmd.extend_from_slice(&[self.context.network.to_byte()]);
 
         cmd.extend_from_slice(&self.context.remote_port.to_be_bytes());
         let addr = encode_addr(&self.context.remote_addr)?;

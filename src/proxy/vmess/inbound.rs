@@ -6,7 +6,7 @@ use crate::common::{
     KDFSALT_CONST_VMESS_HEADER_PAYLOAD_LENGTH_AEAD_KEY,
 };
 use crate::config::{Config, Inbound};
-use crate::proxy::RequestContext;
+use crate::proxy::{Network, Proxy, RequestContext};
 
 use std::io::Cursor;
 use std::pin::Pin;
@@ -20,6 +20,7 @@ use aes_gcm::{
 use md5::{Digest, Md5};
 use sha2::Sha256;
 
+use async_trait::async_trait;
 use bytes::{BufMut, BytesMut};
 use futures_util::Stream;
 use pin_project_lite::pin_project;
@@ -36,6 +37,8 @@ pin_project! {
         pub events: EventStream<'a>,
     }
 }
+
+unsafe impl<'a> Send for VmessStream<'a> {}
 
 impl<'a> VmessStream<'a> {
     pub fn new(
@@ -134,8 +137,11 @@ impl<'a> VmessStream<'a> {
 
         Ok(header_payload)
     }
+}
 
-    pub async fn process(&mut self) -> Result<()> {
+#[async_trait]
+impl<'a> Proxy for VmessStream<'a> {
+    async fn process(&mut self) -> Result<()> {
         let mut buf = Cursor::new(self.aead_decrypt().await?);
 
         // https://xtls.github.io/en/development/protocols/vmess.html#command-section
@@ -160,6 +166,9 @@ impl<'a> VmessStream<'a> {
         let mut options = [0u8; 5];
         buf.read_exact(&mut options).await?;
 
+        // command
+        let network = Network::from_byte(options[4])?;
+
         let remote_port = {
             let mut port = [0u8; 2];
             buf.read_exact(&mut port).await?;
@@ -173,6 +182,7 @@ impl<'a> VmessStream<'a> {
         let ctx = RequestContext {
             remote_addr,
             remote_port,
+            network,
         };
         let mut upstream = crate::proxy::connect_outbound(ctx, outbound).await?;
 

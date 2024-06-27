@@ -1,9 +1,10 @@
 use crate::config::{Config, Inbound};
-use crate::proxy::RequestContext;
+use crate::proxy::{Network, Proxy, RequestContext};
 
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
+use async_trait::async_trait;
 use bytes::{BufMut, BytesMut};
 use futures_util::Stream;
 use pin_project_lite::pin_project;
@@ -20,6 +21,8 @@ pin_project! {
         pub events: EventStream<'a>,
     }
 }
+
+unsafe impl<'a> Send for VlessStream<'a> {}
 
 impl<'a> VlessStream<'a> {
     pub fn new(
@@ -38,8 +41,11 @@ impl<'a> VlessStream<'a> {
             events,
         }
     }
+}
 
-    pub async fn process(&mut self) -> Result<()> {
+#[async_trait]
+impl<'a> Proxy for VlessStream<'a> {
+    async fn process(&mut self) -> Result<()> {
         // https://xtls.github.io/Xray-docs-next/en/development/protocols/vless.html
         // +------------------+-----------------+---------------------------------+---------------------------------+-------------+---------+--------------+---------+--------------+
         // |      1 byte      |    16 bytes     |             1 byte              |             M bytes             |   1 byte    | 2 bytes |    1 byte    | S bytes |   X bytes    |
@@ -64,7 +70,7 @@ impl<'a> VlessStream<'a> {
         self.read_exact(&mut addon).await?;
 
         // instruction
-        self.read_u8().await?;
+        let network = Network::from_byte(self.read_u8().await?)?;
 
         // addr:port
         let mut port = [0u8; 2];
@@ -78,6 +84,7 @@ impl<'a> VlessStream<'a> {
         let ctx = RequestContext {
             remote_addr,
             remote_port,
+            network,
         };
         let mut upstream = crate::proxy::connect_outbound(ctx, outbound).await?;
 
