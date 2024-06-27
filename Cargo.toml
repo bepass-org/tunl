@@ -25,6 +25,7 @@ sha2 = "0.10"
 md-5 = "0.10"
 toml = "0.8"
 fastrand = "2.1"
+async-trait = "0.1"
 
 [profile.release]
 opt-level = "s"

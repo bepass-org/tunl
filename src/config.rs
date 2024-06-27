@@ -10,6 +10,7 @@ pub enum Protocol {
     #[default]
     Vmess,
     Vless,
+    Relay,
     Freedom,
 }
 
