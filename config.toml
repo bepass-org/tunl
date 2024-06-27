@@ -11,7 +11,7 @@ path = "/vmess"
 [outbound]
 addresses = ["127.0.0.1"]
 port = 6666
-protocol = "relay"
+protocol = "vless"
 uuid = "0fbf4f81-2598-4b6a-a623-0ead4cb9efa8"
 match = [
     "173.245.48.0/20",

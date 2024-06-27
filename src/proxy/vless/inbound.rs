@@ -1,5 +1,5 @@
 use crate::config::{Config, Inbound};
-use crate::proxy::{Network, Proxy, RequestContext};
+use crate::proxy::{vless::encoding, Proxy, RequestContext};
 
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use bytes::{BufMut, BytesMut};
 use futures_util::Stream;
 use pin_project_lite::pin_project;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
+use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, ReadBuf};
 use worker::*;
 
 pin_project! {
@@ -46,46 +46,17 @@ impl<'a> VlessStream<'a> {
 #[async_trait]
 impl<'a> Proxy for VlessStream<'a> {
     async fn process(&mut self) -> Result<()> {
-        // https://xtls.github.io/Xray-docs-next/en/development/protocols/vless.html
-        // +------------------+-----------------+---------------------------------+---------------------------------+-------------+---------+--------------+---------+--------------+
-        // |      1 byte      |    16 bytes     |             1 byte              |             M bytes             |   1 byte    | 2 bytes |    1 byte    | S bytes |   X bytes    |
-        // +------------------+-----------------+---------------------------------+---------------------------------+-------------+---------+--------------+---------+--------------+
-        // | Protocol Version | Equivalent UUID | Additional Information Length M | Additional Information ProtoBuf | Instruction | Port    | Address Type | Address | Request Data |
-        // +------------------+-----------------+---------------------------------+---------------------------------+-------------+---------+--------------+---------+--------------+
+        let uuid = self.inbound.uuid;
+        let header = encoding::decode_request_header(&mut self, &uuid.into_bytes()).await?;
 
-        // ignore protocl version
-        self.read_u8().await?;
+        let outbound = self.config.dispatch_outbound(&header.address, header.port);
 
-        // UUID
-        let mut uuid = [0u8; 16];
-        self.read_exact(&mut uuid).await?;
-        let uuid = uuid::Uuid::from_bytes(uuid);
-        if self.inbound.uuid != uuid {
-            return Err(Error::RustError("incorrect uuid".to_string()));
-        }
-
-        // additional information
-        let len = self.read_u8().await?;
-        let mut addon = vec![0u8; len as _];
-        self.read_exact(&mut addon).await?;
-
-        // instruction
-        let network = Network::from_byte(self.read_u8().await?)?;
-
-        // addr:port
-        let mut port = [0u8; 2];
-        self.read_exact(&mut port).await?;
-        let remote_port = u16::from_be_bytes(port);
-        let remote_addr = crate::common::parse_addr(self).await?;
-
-        let outbound = self
-            .config
-            .dispatch_outbound(remote_addr.clone(), remote_port);
         let ctx = RequestContext {
-            remote_addr,
-            remote_port,
-            network,
+            address: header.address,
+            port: header.port,
+            network: header.network,
         };
+
         let mut upstream = crate::proxy::connect_outbound(ctx, outbound).await?;
 
         // +-----------------------------------------------+------------------------------------+------------------------------------+---------------+
