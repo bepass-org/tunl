@@ -41,8 +41,8 @@ impl Proxy for VlessStream {
         cmd.extend_from_slice(&[0x00]);
         cmd.extend_from_slice(&[self.context.network.to_byte()]);
 
-        cmd.extend_from_slice(&self.context.remote_port.to_be_bytes());
-        let addr = encode_addr(&self.context.remote_addr)?;
+        cmd.extend_from_slice(&self.context.port.to_be_bytes());
+        let addr = encode_addr(&self.context.address)?;
         if addr.len() > 4 {
             cmd.extend_from_slice(&[0x02]);
         } else {

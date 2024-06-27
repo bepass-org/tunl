@@ -20,6 +20,7 @@ pub struct Outbound {
     pub addresses: Vec<String>,
     pub port: u16,
     pub protocol: Protocol,
+    #[serde(default)]
     pub uuid: Uuid,
 }
 
@@ -51,7 +52,7 @@ impl Config {
         None
     }
 
-    pub fn dispatch_outbound(&self, addr: String, port: u16) -> Outbound {
+    pub fn dispatch_outbound(&self, addr: &str, _port: u16) -> Outbound {
         if let Ok(ip) = addr.parse::<IpAddr>() {
             if self.outbound.r#match.iter().any(|cidr| cidr.contains(&ip)) {
                 return self.outbound.clone();
@@ -62,10 +63,7 @@ impl Config {
         // TODO: change outbound to enum
         Outbound {
             protocol: Protocol::Freedom,
-            uuid: uuid::uuid!("00000000-0000-0000-0000-000000000000"),
-            r#match: vec![],
-            addresses: vec![],
-            port,
+            ..Default::default()
         }
     }
 }
@@ -119,5 +117,9 @@ mod tests {
             uuid::uuid!("0fbf4f81-2598-4b6a-a623-0ead4cb9efa8")
         );
         assert_eq!(config.outbound.addresses, vec!["1.1.1.1"]);
+        assert_eq!(
+            config.outbound.uuid,
+            uuid::uuid!("0fbf4f81-2598-4b6a-a623-0ead4cb9efa8")
+        );
     }
 }

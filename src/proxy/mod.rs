@@ -46,14 +46,14 @@ impl Network {
 
 #[derive(Default)]
 pub struct RequestContext {
-    remote_addr: String,
-    remote_port: u16,
+    address: String,
+    port: u16,
     network: Network,
 }
 
 async fn connect_outbound(ctx: RequestContext, outbound: Outbound) -> Result<Box<dyn Proxy>> {
     let (addr, port) = match outbound.protocol {
-        Protocol::Freedom => (&ctx.remote_addr, ctx.remote_port),
+        Protocol::Freedom => (&ctx.address, ctx.port),
         _ => (
             &outbound.addresses[fastrand::usize(..outbound.addresses.len())],
             outbound.port,

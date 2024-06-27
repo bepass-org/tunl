@@ -22,8 +22,8 @@ impl RelayStream {
 impl Proxy for RelayStream {
     async fn process(&mut self) -> Result<()> {
         let header = {
-            let addr = &self.context.remote_addr;
-            let port = self.context.remote_port;
+            let addr = &self.context.address;
+            let port = self.context.port;
             let network = format!("{:?}", self.context.network).to_lowercase();
 
             format!("{network}@{addr}${port}\r\n").as_bytes().to_vec()
