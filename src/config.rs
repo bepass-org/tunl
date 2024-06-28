@@ -11,15 +11,19 @@ pub enum Protocol {
     Vmess,
     Vless,
     Relay,
+    Blackhole,
     Freedom,
 }
 
 #[derive(Default, Clone, Deserialize)]
 pub struct Outbound {
     pub r#match: Vec<IpCidr>,
-    pub addresses: Vec<String>,
-    pub port: u16,
     pub protocol: Protocol,
+    // TODO: only allow empty on blackhole protocol
+    #[serde(default)]
+    pub addresses: Vec<String>,
+    #[serde(default)]
+    pub port: u16,
     #[serde(default)]
     pub uuid: Uuid,
 }
