@@ -21,7 +21,10 @@ async fn main(req: Request, _: Env, _: Context) -> Result<Response> {
     match req.path().as_str() {
         "/link" => link(req, config),
         path => match config.dispatch_inbound(path) {
-            Some(inbound) => tunnel(config, inbound).await,
+            Some(mut inbound) => {
+                inbound.context.request = Some(req);
+                tunnel(config, inbound).await
+            }
             None => Response::empty(),
         },
     }

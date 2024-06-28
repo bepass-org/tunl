@@ -1,5 +1,7 @@
 use std::net::IpAddr;
 
+use crate::proxy::RequestContext;
+
 use cidr::IpCidr;
 use serde::Deserialize;
 use uuid::{self, Uuid};
@@ -10,6 +12,7 @@ pub enum Protocol {
     #[default]
     Vmess,
     Vless,
+    Bepass,
     Relay,
     Blackhole,
     Freedom,
@@ -33,6 +36,8 @@ pub struct Inbound {
     pub protocol: Protocol,
     pub uuid: Uuid,
     pub path: String,
+    #[serde(skip)]
+    pub context: RequestContext,
 }
 
 #[derive(Default, Clone, Deserialize)]
