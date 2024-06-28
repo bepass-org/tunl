@@ -1,3 +1,4 @@
+pub mod blackhole;
 pub mod relay;
 pub mod vless;
 pub mod vmess;
@@ -54,10 +55,15 @@ pub struct RequestContext {
 async fn connect_outbound(ctx: RequestContext, outbound: Outbound) -> Result<Box<dyn Proxy>> {
     let (addr, port) = match outbound.protocol {
         Protocol::Freedom => (&ctx.address, ctx.port),
-        _ => (
-            &outbound.addresses[fastrand::usize(..outbound.addresses.len())],
-            outbound.port,
-        ),
+        _ => {
+            let address = if outbound.addresses.len() > 0 {
+                &outbound.addresses[fastrand::usize(..outbound.addresses.len())]
+            } else {
+                &ctx.address
+            };
+
+            (address, outbound.port)
+        }
     };
 
     console_log!(
@@ -70,6 +76,7 @@ async fn connect_outbound(ctx: RequestContext, outbound: Outbound) -> Result<Box
     let mut stream: Box<dyn Proxy> = match outbound.protocol {
         Protocol::Vless => Box::new(vless::outbound::VlessStream::new(ctx, outbound, socket)),
         Protocol::Relay => Box::new(relay::outbound::RelayStream::new(ctx, socket)),
+        Protocol::Blackhole => Box::new(blackhole::outbound::BlackholeStream),
         _ => Box::new(socket),
     };
 
