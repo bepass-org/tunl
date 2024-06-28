@@ -26,19 +26,21 @@ pub fn generate_link(config: &Config, host: &str) -> Link {
 
 fn generate_vless_link(config: &Inbound, host: &str) -> String {
     format!(
-        "vless://{}@{}:443?type=ws&security=tls#tunl",
-        config.uuid, host,
+        "vless://{}@{}:443?type=ws&security=tls&path={}#tunl",
+        config.uuid, host, config.path
     )
 }
 
 fn generate_vmess_link(config: &Inbound, host: &str) -> String {
     let uuid = config.uuid.to_string();
+    let path = &config.path;
     let config = json!({
         "ps": "tunl",
         "v": "2",
         "add": host,
         "port": "443",
         "id": uuid,
+        "path": path,
         "aid": "0",
         "scy": "zero",
         "net": "ws",
