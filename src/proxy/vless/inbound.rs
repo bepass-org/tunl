@@ -1,5 +1,5 @@
 use crate::config::{Config, Inbound};
-use crate::proxy::{vless::encoding, Proxy, RequestContext};
+use crate::proxy::{vless::encoding, Proxy};
 
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -51,13 +51,14 @@ impl<'a> Proxy for VlessStream<'a> {
 
         let outbound = self.config.dispatch_outbound(&header.address, header.port);
 
-        let ctx = RequestContext {
-            address: header.address,
-            port: header.port,
-            network: header.network,
-        };
+        let mut context = self.inbound.context.clone();
+        {
+            context.address = header.address;
+            context.port = header.port;
+            context.network = header.network;
+        }
 
-        let mut upstream = crate::proxy::connect_outbound(ctx, outbound).await?;
+        let mut upstream = crate::proxy::connect_outbound(context, outbound).await?;
 
         // +-----------------------------------------------+------------------------------------+------------------------------------+---------------+
         // |                    1 Byte                     |               1 Byte               |              N Bytes               |    Y Bytes    |

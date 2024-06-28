@@ -1,3 +1,4 @@
+pub mod bepass;
 pub mod blackhole;
 pub mod relay;
 pub mod vless;
@@ -21,7 +22,7 @@ impl Proxy for Socket {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub enum Network {
     #[default]
     Tcp,
@@ -29,6 +30,14 @@ pub enum Network {
 }
 
 impl Network {
+    fn from_str(s: &str) -> Result<Self> {
+        match s {
+            "tcp" => Ok(Self::Tcp),
+            "udp" => Ok(Self::Udp),
+            _ => Err(Error::RustError("invalid network type".to_string())),
+        }
+    }
+
     fn from_byte(b: u8) -> Result<Self> {
         match b {
             0x01 => Ok(Self::Tcp),
@@ -50,6 +59,27 @@ pub struct RequestContext {
     address: String,
     port: u16,
     network: Network,
+    pub request: Option<Request>,
+}
+
+unsafe impl Send for RequestContext {}
+
+impl Clone for RequestContext {
+    fn clone(&self) -> Self {
+        let port = self.port;
+        let address = self.address.clone();
+        let network = self.network.clone();
+
+        Self {
+            address,
+            port,
+            network,
+            // to avoid unnecessary overheads of copying:
+            // context is getting filled during processing a request
+            // so no need to clone any data here
+            request: None,
+        }
+    }
 }
 
 async fn connect_outbound(ctx: RequestContext, outbound: Outbound) -> Result<Box<dyn Proxy>> {
@@ -98,6 +128,11 @@ pub async fn process(
         }
         Protocol::Vless => {
             vless::inbound::VlessStream::new(config, inbound, events, ws)
+                .process()
+                .await
+        }
+        Protocol::Bepass => {
+            bepass::inbound::BepassStream::new(config, inbound, events, ws)
                 .process()
                 .await
         }
