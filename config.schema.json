@@ -1,0 +1,91 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Config",
+  "type": "object",
+  "required": [
+    "inbound",
+    "outbound"
+  ],
+  "properties": {
+    "inbound": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Inbound"
+      }
+    },
+    "outbound": {
+      "$ref": "#/definitions/Outbound"
+    }
+  },
+  "definitions": {
+    "Inbound": {
+      "type": "object",
+      "required": [
+        "path",
+        "protocol",
+        "uuid"
+      ],
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "protocol": {
+          "$ref": "#/definitions/Protocol"
+        },
+        "uuid": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "Outbound": {
+      "type": "object",
+      "required": [
+        "match",
+        "protocol"
+      ],
+      "properties": {
+        "addresses": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "match": {
+          "title": "List of Ip Rages (E.g. 103.22.200.0/22)",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "ip"
+          }
+        },
+        "port": {
+          "default": 0,
+          "type": "integer",
+          "format": "uint16",
+          "minimum": 0.0
+        },
+        "protocol": {
+          "$ref": "#/definitions/Protocol"
+        },
+        "uuid": {
+          "default": "00000000-0000-0000-0000-000000000000",
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    },
+    "Protocol": {
+      "type": "string",
+      "enum": [
+        "vmess",
+        "vless",
+        "bepass",
+        "relay",
+        "blackhole",
+        "freedom"
+      ]
+    }
+  }
+}

@@ -3,11 +3,12 @@ use std::net::IpAddr;
 use crate::proxy::RequestContext;
 
 use cidr::IpCidr;
-use serde::Deserialize;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use uuid::{self, Uuid};
 
-#[derive(Default, Debug, PartialEq, Clone, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[derive(Default, Debug, PartialEq, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum Protocol {
     #[default]
     Vmess,
@@ -18,8 +19,10 @@ pub enum Protocol {
     Freedom,
 }
 
-#[derive(Default, Clone, Deserialize)]
+#[derive(Default, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Outbound {
+    #[schemars(with = "Vec<IpAddr>")]
+    /// # List of Ip Rages (E.g. 103.22.200.0/22)
     pub r#match: Vec<IpCidr>,
     pub protocol: Protocol,
     // TODO: only allow empty on blackhole protocol
@@ -31,7 +34,7 @@ pub struct Outbound {
     pub uuid: Uuid,
 }
 
-#[derive(Default, Clone, Deserialize)]
+#[derive(Default, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Inbound {
     pub protocol: Protocol,
     pub uuid: Uuid,
@@ -40,7 +43,7 @@ pub struct Inbound {
     pub context: RequestContext,
 }
 
-#[derive(Default, Clone, Deserialize)]
+#[derive(Default, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Config {
     pub inbound: Vec<Inbound>,
     pub outbound: Outbound,

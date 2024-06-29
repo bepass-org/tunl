@@ -6,6 +6,10 @@ edition = "2021"
 [lib]
 crate-type = ["cdylib"]
 
+[[bin]]
+name = "schema_generator"
+path = "src/schema_generator.rs"
+
 [dependencies]
 tokio = { version = "1.28", features = ["io-util", "rt"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -26,6 +30,7 @@ md-5 = "0.10"
 toml = "0.8"
 fastrand = "2.1"
 async-trait = "0.1"
+schemars = { version = "0.8", features = ["uuid1"] }
 
 [profile.release]
 opt-level = "s"
