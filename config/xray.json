@@ -1,0 +1,80 @@
+{
+  "log": {
+    "loglevel": "info"
+  },
+  "inbounds": [
+    {
+      "port": 1085,
+      "listen": "127.0.0.1",
+      "protocol": "socks",
+      "settings": {
+        "udp": true
+      }
+    }
+  ],
+  "outbounds": [
+    {
+      "tag": "vmess",
+      "protocol": "vmess",
+      "settings": {
+        "vnext": [
+          {
+            "address": "YOUR_CF_WORKER_SUBDOMAIN.workers.dev",
+            "port": 443,
+            "users": [
+              {
+                "id": "0fbf4f81-2598-4b6a-a623-0ead4cb9efa8",
+                "security": "zero"
+              }
+            ]
+          }
+        ]
+      },
+      "streamSettings": {
+        "security": "tls",
+        "network": "ws",
+        "wsSettings": {
+          "path": "/vmess"
+        }
+      }
+    },
+    {
+      "tag": "vless",
+      "protocol": "vless",
+      "settings": {
+        "vnext": [
+          {
+            "address": "YOUR_CF_WORKER_SUBDOMAIN.workers.dev",
+            "port": 443,
+            "users": [
+              {
+                "id": "0fbf4f81-2598-4b6a-a623-0ead4cb9efa8",
+                "level": 0,
+                "encryption": "none"
+              }
+            ]
+          }
+        ]
+      },
+      "streamSettings": {
+        "security": "tls",
+        "network": "ws",
+        "wsSettings": {
+          "path": "/vless"
+        }
+      }
+    }
+  ],
+  "routing": {
+    "domainStrategy": "AsIs",
+    "rules": [
+      {
+        "type": "field",
+        "ip": [
+          "185.13.228.162"
+        ],
+        "outboundTag": "vless"
+      }
+    ]
+  }
+}

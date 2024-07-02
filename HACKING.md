@@ -32,3 +32,5 @@ Run the local server and start hacking:
 ```sh
 $ make dev
 ```
+
+**NOTE**: If your changes modify the configuration file, ensure you run `make schema` before submitting your patch.
