@@ -82,7 +82,8 @@
         "vmess",
         "vless",
         "bepass",
-        "relay",
+        "relay_v1",
+        "relay_v2",
         "blackhole",
         "freedom"
       ]
