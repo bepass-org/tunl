@@ -56,9 +56,9 @@ impl Network {
 
 #[derive(Default)]
 pub struct RequestContext {
-    address: String,
-    port: u16,
-    network: Network,
+    pub address: String,
+    pub port: u16,
+    pub network: Network,
     pub request: Option<Request>,
 }
 
@@ -105,7 +105,16 @@ async fn connect_outbound(ctx: RequestContext, outbound: Outbound) -> Result<Box
 
     let mut stream: Box<dyn Proxy> = match outbound.protocol {
         Protocol::Vless => Box::new(vless::outbound::VlessStream::new(ctx, outbound, socket)),
-        Protocol::Relay => Box::new(relay::outbound::RelayStream::new(ctx, socket)),
+        Protocol::RelayV1 => Box::new(relay::outbound::RelayStream::new(
+            ctx,
+            socket,
+            relay::outbound::RelayVersion::V1,
+        )),
+        Protocol::RelayV2 => Box::new(relay::outbound::RelayStream::new(
+            ctx,
+            socket,
+            relay::outbound::RelayVersion::V2,
+        )),
         Protocol::Blackhole => Box::new(blackhole::outbound::BlackholeStream),
         _ => Box::new(socket),
     };
