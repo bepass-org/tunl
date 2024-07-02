@@ -31,6 +31,7 @@ toml = "0.8"
 fastrand = "2.1"
 async-trait = "0.1"
 schemars = { version = "0.8", features = ["uuid1"] }
+bincode = "2.0.0-rc.3"
 
 [profile.release]
 opt-level = "s"

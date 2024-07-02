@@ -1,6 +1,6 @@
 use std::net::IpAddr;
 
-use crate::proxy::RequestContext;
+use crate::proxy::{Network, RequestContext};
 
 use cidr::IpCidr;
 use schemars::JsonSchema;
@@ -14,7 +14,8 @@ pub enum Protocol {
     Vmess,
     Vless,
     Bepass,
-    Relay,
+    RelayV1,
+    RelayV2,
     Blackhole,
     Freedom,
 }
@@ -64,8 +65,15 @@ impl Config {
         None
     }
 
-    pub fn dispatch_outbound(&self, addr: &str, _port: u16) -> Outbound {
-        if let Ok(ip) = addr.parse::<IpAddr>() {
+    pub fn dispatch_outbound(&self, context: &RequestContext) -> Outbound {
+        match &context.network {
+            Network::Udp => {
+                return self.outbound.clone();
+            }
+            _ => {}
+        }
+
+        if let Ok(ip) = context.address.clone().parse::<IpAddr>() {
             if self.outbound.r#match.iter().any(|cidr| cidr.contains(&ip)) {
                 return self.outbound.clone();
             }

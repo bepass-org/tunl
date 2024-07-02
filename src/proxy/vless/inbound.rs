@@ -49,8 +49,6 @@ impl<'a> Proxy for VlessStream<'a> {
         let uuid = self.inbound.uuid;
         let header = encoding::decode_request_header(&mut self, &uuid.into_bytes()).await?;
 
-        let outbound = self.config.dispatch_outbound(&header.address, header.port);
-
         let mut context = self.inbound.context.clone();
         {
             context.address = header.address;
@@ -58,6 +56,7 @@ impl<'a> Proxy for VlessStream<'a> {
             context.network = header.network;
         }
 
+        let outbound = self.config.dispatch_outbound(&context);
         let mut upstream = crate::proxy::connect_outbound(context, outbound).await?;
 
         // +-----------------------------------------------+------------------------------------+------------------------------------+---------------+
