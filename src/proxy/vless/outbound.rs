@@ -69,6 +69,7 @@ impl AsyncRead for VlessStream {
             if !self.handshaked {
                 // ignore the two first bytes for now
                 buf.put_slice(&data[2..]);
+                self.handshaked = true;
             } else {
                 buf.put_slice(&data);
             }
