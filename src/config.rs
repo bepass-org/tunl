@@ -38,6 +38,7 @@ pub struct Outbound {
 #[derive(Default, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Inbound {
     pub protocol: Protocol,
+    #[serde(default)]
     pub uuid: Uuid,
     pub path: String,
     #[serde(skip)]

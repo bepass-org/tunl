@@ -14,4 +14,4 @@ deploy: ## deploy to cf workers
 
 .PHONY: dev
 dev: ## run the project locally
-	@ npx wrangler dev --port 8787
+	@ npx wrangler dev --local-protocol https --port 8787
