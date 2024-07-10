@@ -8,6 +8,11 @@ protocol = "vmess"
 uuid = "0fbf4f81-2598-4b6a-a623-0ead4cb9efa8"
 path = "/vmess"
 
+[[inbound]]
+protocol = "trojan"
+path = "/trojan"
+password = "test"
+
 [outbound]
 addresses = ["127.0.0.1"]
 port = 6666

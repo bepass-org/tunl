@@ -1,6 +1,7 @@
 pub mod bepass;
 pub mod blackhole;
 pub mod relay;
+pub mod trojan;
 pub mod vless;
 pub mod vmess;
 
@@ -137,6 +138,11 @@ pub async fn process(
         }
         Protocol::Vless => {
             vless::inbound::VlessStream::new(config, inbound, events, ws)
+                .process()
+                .await
+        }
+        Protocol::Trojan => {
+            trojan::inbound::TrojanStream::new(config, inbound, events, ws)
                 .process()
                 .await
         }

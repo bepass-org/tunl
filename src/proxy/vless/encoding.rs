@@ -43,7 +43,12 @@ pub async fn decode_request_header<S: AsyncRead + AsyncWrite + Unpin>(
         stream.read_exact(&mut p).await?;
         u16::from_be_bytes(p)
     };
-    let address = crate::common::parse_addr(stream).await?;
+    let address = match stream.read_u8().await? {
+        0x01 => crate::common::parse_ipv4(stream).await?,
+        0x02 => crate::common::parse_domain(stream).await?,
+        0x03 => crate::common::parse_ipv6(stream).await?,
+        _ => return Err(Error::RustError("invalid address".to_string())),
+    };
 
     Ok(Header {
         network,
