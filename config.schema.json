@@ -22,10 +22,13 @@
       "type": "object",
       "required": [
         "path",
-        "protocol",
-        "uuid"
+        "protocol"
       ],
       "properties": {
+        "password": {
+          "default": "",
+          "type": "string"
+        },
         "path": {
           "type": "string"
         },
@@ -33,6 +36,7 @@
           "$ref": "#/definitions/Protocol"
         },
         "uuid": {
+          "default": "00000000-0000-0000-0000-000000000000",
           "type": "string",
           "format": "uuid"
         }
@@ -81,6 +85,7 @@
       "enum": [
         "vmess",
         "vless",
+        "trojan",
         "bepass",
         "relay_v1",
         "relay_v2",

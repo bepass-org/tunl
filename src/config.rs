@@ -13,6 +13,7 @@ pub enum Protocol {
     #[default]
     Vmess,
     Vless,
+    Trojan,
     Bepass,
     RelayV1,
     RelayV2,
@@ -38,8 +39,12 @@ pub struct Outbound {
 #[derive(Default, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct Inbound {
     pub protocol: Protocol,
+    // only for vmess/vless
     #[serde(default)]
     pub uuid: Uuid,
+    // only for trojan
+    #[serde(default)]
+    pub password: String,
     pub path: String,
     #[serde(skip)]
     pub context: RequestContext,
