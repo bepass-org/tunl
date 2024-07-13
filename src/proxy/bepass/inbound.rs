@@ -1,7 +1,8 @@
-use crate::config::{Config, Inbound};
-use crate::proxy::{bepass::encoding, Proxy};
+use crate::config::Config;
+use crate::proxy::{bepass::encoding, Proxy, RequestContext};
 
 use std::pin::Pin;
+use std::sync::Arc;
 use std::task::{Context, Poll};
 
 use async_trait::async_trait;
@@ -13,8 +14,8 @@ use worker::*;
 
 pin_project! {
     pub struct BepassStream<'a> {
-        pub config: Config,
-        pub inbound: Inbound,
+        pub config: Arc<Config>,
+        pub context: RequestContext,
         pub ws: &'a WebSocket,
         pub buffer: BytesMut,
         #[pin]
@@ -26,8 +27,8 @@ unsafe impl<'a> Send for BepassStream<'a> {}
 
 impl<'a> BepassStream<'a> {
     pub fn new(
-        config: Config,
-        inbound: Inbound,
+        config: Arc<Config>,
+        context: RequestContext,
         events: EventStream<'a>,
         ws: &'a WebSocket,
     ) -> Self {
@@ -35,7 +36,7 @@ impl<'a> BepassStream<'a> {
 
         Self {
             config,
-            inbound,
+            context,
             ws,
             buffer,
             events,
@@ -46,17 +47,12 @@ impl<'a> BepassStream<'a> {
 #[async_trait]
 impl<'a> Proxy for BepassStream<'a> {
     async fn process(&mut self) -> Result<()> {
-        let request = self
-            .inbound
-            .context
-            .request
-            .as_ref()
-            .ok_or(Error::RustError(
-                "failed to retrive request context".to_string(),
-            ))?;
+        let request = self.context.request.as_ref().ok_or(Error::RustError(
+            "failed to retrive request context".to_string(),
+        ))?;
         let header = encoding::decode_request_header(request)?;
 
-        let mut context = self.inbound.context.clone();
+        let mut context = self.context.clone();
         {
             context.address = header.address.clone();
             context.port = header.port;

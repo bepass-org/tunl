@@ -46,8 +46,6 @@ pub struct Inbound {
     #[serde(default)]
     pub password: String,
     pub path: String,
-    #[serde(skip)]
-    pub context: RequestContext,
 }
 
 #[derive(Default, Clone, Serialize, Deserialize, JsonSchema)]

@@ -5,6 +5,8 @@ pub mod trojan;
 pub mod vless;
 pub mod vmess;
 
+use std::sync::Arc;
+
 use crate::config::*;
 
 use async_trait::async_trait;
@@ -60,6 +62,7 @@ pub struct RequestContext {
     pub address: String,
     pub port: u16,
     pub network: Network,
+    pub inbound: Inbound,
     pub request: Option<Request>,
 }
 
@@ -70,11 +73,13 @@ impl Clone for RequestContext {
         let port = self.port;
         let address = self.address.clone();
         let network = self.network.clone();
+        let inbound = self.inbound.clone();
 
         Self {
             address,
             port,
             network,
+            inbound,
             // to avoid unnecessary overheads of copying:
             // context is getting filled during processing a request
             // so no need to clone any data here
@@ -125,29 +130,29 @@ async fn connect_outbound(ctx: RequestContext, outbound: Outbound) -> Result<Box
 }
 
 pub async fn process(
-    config: Config,
-    inbound: Inbound,
+    config: Arc<Config>,
+    context: RequestContext,
     ws: &WebSocket,
     events: EventStream<'_>,
 ) -> Result<()> {
-    match inbound.protocol {
+    match context.inbound.protocol {
         Protocol::Vmess => {
-            vmess::inbound::VmessStream::new(config, inbound, events, ws)
+            vmess::inbound::VmessStream::new(config, context, events, ws)
                 .process()
                 .await
         }
         Protocol::Vless => {
-            vless::inbound::VlessStream::new(config, inbound, events, ws)
+            vless::inbound::VlessStream::new(config, context, events, ws)
                 .process()
                 .await
         }
         Protocol::Trojan => {
-            trojan::inbound::TrojanStream::new(config, inbound, events, ws)
+            trojan::inbound::TrojanStream::new(config, context, events, ws)
                 .process()
                 .await
         }
         Protocol::Bepass => {
-            bepass::inbound::BepassStream::new(config, inbound, events, ws)
+            bepass::inbound::BepassStream::new(config, context, events, ws)
                 .process()
                 .await
         }

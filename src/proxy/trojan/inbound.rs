@@ -1,7 +1,8 @@
-use crate::config::{Config, Inbound};
-use crate::proxy::{trojan::encoding, Proxy};
+use crate::config::Config;
+use crate::proxy::{trojan::encoding, Proxy, RequestContext};
 
 use std::pin::Pin;
+use std::sync::Arc;
 use std::task::{Context, Poll};
 
 use async_trait::async_trait;
@@ -13,8 +14,8 @@ use worker::*;
 
 pin_project! {
     pub struct TrojanStream<'a> {
-        pub config: Config,
-        pub inbound: Inbound,
+        pub config: Arc<Config>,
+        pub context: RequestContext,
         pub ws: &'a WebSocket,
         pub buffer: BytesMut,
         #[pin]
@@ -26,8 +27,8 @@ unsafe impl<'a> Send for TrojanStream<'a> {}
 
 impl<'a> TrojanStream<'a> {
     pub fn new(
-        config: Config,
-        inbound: Inbound,
+        config: Arc<Config>,
+        context: RequestContext,
         events: EventStream<'a>,
         ws: &'a WebSocket,
     ) -> Self {
@@ -35,7 +36,7 @@ impl<'a> TrojanStream<'a> {
 
         Self {
             config,
-            inbound,
+            context,
             ws,
             buffer,
             events,
@@ -46,10 +47,10 @@ impl<'a> TrojanStream<'a> {
 #[async_trait]
 impl<'a> Proxy for TrojanStream<'a> {
     async fn process(&mut self) -> Result<()> {
-        let password = self.inbound.password.clone();
+        let password = self.context.inbound.password.clone();
         let header = encoding::decode_request_header(&mut self, &password).await?;
 
-        let mut context = self.inbound.context.clone();
+        let mut context = self.context.clone();
         {
             context.address = header.address;
             context.port = header.port;
