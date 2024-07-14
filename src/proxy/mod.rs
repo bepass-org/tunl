@@ -4,10 +4,12 @@ pub mod relay;
 pub mod trojan;
 pub mod vless;
 pub mod vmess;
+pub mod ws;
 
 use std::sync::Arc;
 
 use crate::config::*;
+use ws::WebSocketStream;
 
 use async_trait::async_trait;
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -135,24 +137,25 @@ pub async fn process(
     ws: &WebSocket,
     events: EventStream<'_>,
 ) -> Result<()> {
+    let ws = WebSocketStream::new(events, ws);
     match context.inbound.protocol {
         Protocol::Vmess => {
-            vmess::inbound::VmessStream::new(config, context, events, ws)
+            vmess::inbound::VmessStream::new(config, context, ws)
                 .process()
                 .await
         }
         Protocol::Vless => {
-            vless::inbound::VlessStream::new(config, context, events, ws)
+            vless::inbound::VlessStream::new(config, context, ws)
                 .process()
                 .await
         }
         Protocol::Trojan => {
-            trojan::inbound::TrojanStream::new(config, context, events, ws)
+            trojan::inbound::TrojanStream::new(config, context, ws)
                 .process()
                 .await
         }
         Protocol::Bepass => {
-            bepass::inbound::BepassStream::new(config, context, events, ws)
+            bepass::inbound::BepassStream::new(config, context, ws)
                 .process()
                 .await
         }
