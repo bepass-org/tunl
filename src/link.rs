@@ -17,6 +17,7 @@ pub fn generate_link(config: &Config, host: &str) -> Link {
         .filter_map(|inbound| match inbound.protocol {
             Protocol::Vless => Some(generate_vless_link(&inbound, host)),
             Protocol::Vmess => Some(generate_vmess_link(&inbound, host)),
+            Protocol::Trojan => Some(generate_trojan_link(&inbound, host)),
             _ => None,
         })
         .collect();
@@ -50,4 +51,11 @@ fn generate_vmess_link(config: &Inbound, host: &str) -> String {
         "alpn": ""}
     );
     format!("vmess://{}", URL_SAFE.encode(config.to_string()))
+}
+
+fn generate_trojan_link(config: &Inbound, host: &str) -> String {
+    format!(
+        "trojan://{}@{}:443?security=tls&type=ws&path={}#tunl",
+        config.password, host, config.path
+    )
 }
