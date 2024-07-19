@@ -34,6 +34,8 @@ pub struct Outbound {
     pub port: u16,
     #[serde(default)]
     pub uuid: Uuid,
+    #[serde(default)]
+    pub password: String,
 }
 
 #[derive(Default, Clone, Serialize, Deserialize, JsonSchema)]

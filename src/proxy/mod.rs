@@ -113,6 +113,7 @@ async fn connect_outbound(ctx: RequestContext, outbound: Outbound) -> Result<Box
 
     let mut stream: Box<dyn Proxy> = match outbound.protocol {
         Protocol::Vless => Box::new(vless::outbound::VlessStream::new(ctx, outbound, socket)),
+        Protocol::Trojan => Box::new(trojan::outbound::TrojanStream::new(ctx, outbound, socket)),
         Protocol::RelayV1 => Box::new(relay::outbound::RelayStream::new(
             ctx,
             socket,
