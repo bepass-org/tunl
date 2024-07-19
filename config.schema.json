@@ -64,6 +64,10 @@
             "format": "ip"
           }
         },
+        "password": {
+          "default": "",
+          "type": "string"
+        },
         "port": {
           "default": 0,
           "type": "integer",
