@@ -1,5 +1,6 @@
 pub mod bepass;
 pub mod blackhole;
+pub mod mock_udp;
 pub mod relay;
 pub mod trojan;
 pub mod vless;
@@ -109,22 +110,29 @@ async fn connect_outbound(ctx: RequestContext, outbound: Outbound) -> Result<Box
         outbound.protocol
     );
 
-    let socket = Socket::builder().connect(addr, port)?;
+    let maybe_dns = outbound.mock_udp && port == 53 && matches!(ctx.network, Network::Udp);
 
-    let mut stream: Box<dyn Proxy> = match outbound.protocol {
-        Protocol::Vless => Box::new(vless::outbound::VlessStream::new(ctx, outbound, socket)),
-        Protocol::RelayV1 => Box::new(relay::outbound::RelayStream::new(
-            ctx,
-            socket,
-            relay::outbound::RelayVersion::V1,
-        )),
-        Protocol::RelayV2 => Box::new(relay::outbound::RelayStream::new(
-            ctx,
-            socket,
-            relay::outbound::RelayVersion::V2,
-        )),
-        Protocol::Blackhole => Box::new(blackhole::outbound::BlackholeStream),
-        _ => Box::new(socket),
+    let mut stream = if maybe_dns {
+        Box::new(mock_udp::outbound::MockUDPStream::new())
+    } else {
+        let socket = Socket::builder().connect(addr, port)?;
+
+        let stream: Box<dyn Proxy> = match outbound.protocol {
+            Protocol::Vless => Box::new(vless::outbound::VlessStream::new(ctx, outbound, socket)),
+            Protocol::RelayV1 => Box::new(relay::outbound::RelayStream::new(
+                ctx,
+                socket,
+                relay::outbound::RelayVersion::V1,
+            )),
+            Protocol::RelayV2 => Box::new(relay::outbound::RelayStream::new(
+                ctx,
+                socket,
+                relay::outbound::RelayVersion::V2,
+            )),
+            Protocol::Blackhole => Box::new(blackhole::outbound::BlackholeStream),
+            _ => Box::new(socket),
+        };
+        stream
     };
 
     stream.process().await?;
