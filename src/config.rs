@@ -34,6 +34,8 @@ pub struct Outbound {
     pub port: u16,
     #[serde(default)]
     pub uuid: Uuid,
+    #[serde(default)]
+    pub mock_udp: bool,
 }
 
 #[derive(Default, Clone, Serialize, Deserialize, JsonSchema)]
